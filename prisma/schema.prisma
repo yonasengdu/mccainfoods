@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Employee {
@@ -13,7 +13,7 @@ model Employee {
   phoneNumber    String
   passportNumber String
   gender         String
-  photograph     String   // base64 data URL
+  photograph     String   @db.Text // base64 data URL
   age            Int
   status         String   @default("pending") // pending | approved | rejected
   createdAt      DateTime @default(now())
