@@ -4,35 +4,36 @@ import path from "path";
 const IS_PROD = process.env.NODE_ENV === "production";
 const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
 
-// Lazy-import @vercel/blob only when we actually have a token
-async function getBlobSDK() {
-  if (!BLOB_TOKEN) return null;
-  try {
-    return await import("@vercel/blob");
-  } catch {
-    return null;
+// In production, we REQUIRE Vercel Blob for persistent storage.
+// Fail loudly if the token is missing so data is never silently lost.
+function requireBlobToken(): string {
+  if (!BLOB_TOKEN) {
+    throw new Error(
+      "BLOB_READ_WRITE_TOKEN is not set. " +
+      "Go to Vercel Dashboard → Storage → Create Blob Store → Connect to project, then redeploy."
+    );
   }
+  return BLOB_TOKEN;
+}
+
+// Lazy-load the blob SDK
+let _blobSDK: typeof import("@vercel/blob") | null = null;
+async function blob() {
+  if (!_blobSDK) _blobSDK = await import("@vercel/blob");
+  return _blobSDK;
 }
 
 // ═══════════════════════════════════════════════════
 //  Low-level read / write helpers
 //  • Dev  → local filesystem (instant)
-//  • Prod + token → Vercel Blob (persistent)
-//  • Prod no token → /tmp fallback (ephemeral)
+//  • Prod → Vercel Blob (persistent, required)
 // ═══════════════════════════════════════════════════
-
-function tmpPath(filename: string): string {
-  return path.join("/tmp", filename);
-}
 
 function localPath(filename: string): string {
   return path.join(process.cwd(), "data", filename);
 }
 
-// ─── JSON helpers ───
-
 async function readJSON<T>(filename: string, fallback: T): Promise<T> {
-  // Dev: read from local data/ folder
   if (!IS_PROD) {
     try {
       return JSON.parse(fs.readFileSync(localPath(filename), "utf-8"));
@@ -41,50 +42,31 @@ async function readJSON<T>(filename: string, fallback: T): Promise<T> {
     }
   }
 
-  // Prod with Vercel Blob
-  const blob = await getBlobSDK();
-  if (blob) {
-    try {
-      const info = await blob.head(`data/${filename}`, { token: BLOB_TOKEN! });
-      const res = await fetch(info.url);
-      if (res.ok) return (await res.json()) as T;
-    } catch { /* blob not found or token issue, fall through */ }
-  }
-
-  // Prod fallback: try /tmp, then bundled data/
+  const token = requireBlobToken();
+  const sdk = await blob();
   try {
-    if (fs.existsSync(tmpPath(filename))) {
-      return JSON.parse(fs.readFileSync(tmpPath(filename), "utf-8"));
-    }
-    if (fs.existsSync(localPath(filename))) {
-      return JSON.parse(fs.readFileSync(localPath(filename), "utf-8"));
-    }
-  } catch { /* ignore */ }
+    const info = await sdk.head(`data/${filename}`, { token });
+    const res = await fetch(info.url);
+    if (res.ok) return (await res.json()) as T;
+  } catch {
+    // Blob doesn't exist yet -- return fallback (first run)
+  }
   return fallback;
 }
 
 async function writeJSON<T>(filename: string, data: T): Promise<void> {
-  const json = JSON.stringify(data, null, 2);
-
-  // Dev: write to local data/ folder
   if (!IS_PROD) {
-    fs.writeFileSync(localPath(filename), json, "utf-8");
+    fs.writeFileSync(localPath(filename), JSON.stringify(data, null, 2), "utf-8");
     return;
   }
 
-  // Prod with Vercel Blob
-  const blob = await getBlobSDK();
-  if (blob) {
-    await blob.put(`data/${filename}`, json, {
-      access: "public",
-      addRandomSuffix: false,
-      token: BLOB_TOKEN!,
-    });
-    return;
-  }
-
-  // Prod fallback: /tmp
-  fs.writeFileSync(tmpPath(filename), json, "utf-8");
+  const token = requireBlobToken();
+  const sdk = await blob();
+  await sdk.put(`data/${filename}`, JSON.stringify(data), {
+    access: "public",
+    addRandomSuffix: false,
+    token,
+  });
 }
 
 // ─── Photo helpers ───
@@ -97,7 +79,6 @@ async function savePhotoFile(base64DataUrl: string): Promise<string> {
   const buffer = Buffer.from(match[2], "base64");
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-  // Dev: save to public/uploads/
   if (!IS_PROD) {
     const dir = path.join(process.cwd(), "public", "uploads");
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -105,22 +86,14 @@ async function savePhotoFile(base64DataUrl: string): Promise<string> {
     return `/uploads/${filename}`;
   }
 
-  // Prod with Vercel Blob
-  const blob = await getBlobSDK();
-  if (blob) {
-    const result = await blob.put(`uploads/${filename}`, buffer, {
-      access: "public",
-      addRandomSuffix: false,
-      token: BLOB_TOKEN!,
-    });
-    return result.url;
-  }
-
-  // Prod fallback: /tmp
-  const dir = path.join("/tmp", "uploads");
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, filename), buffer);
-  return `/api/uploads/${filename}`;
+  const token = requireBlobToken();
+  const sdk = await blob();
+  const result = await sdk.put(`uploads/${filename}`, buffer, {
+    access: "public",
+    addRandomSuffix: false,
+    token,
+  });
+  return result.url;
 }
 
 async function deletePhotoFile(photoUrl: string): Promise<void> {
@@ -132,11 +105,10 @@ async function deletePhotoFile(photoUrl: string): Promise<void> {
     return;
   }
 
-  // Prod with Vercel Blob
-  const blob = await getBlobSDK();
-  if (blob && photoUrl.includes("blob.vercel-storage.com")) {
-    try { await blob.del(photoUrl, { token: BLOB_TOKEN! }); } catch { /* ignore */ }
-    return;
+  if (photoUrl.includes("blob.vercel-storage.com")) {
+    const token = requireBlobToken();
+    const sdk = await blob();
+    try { await sdk.del(photoUrl, { token }); } catch { /* ignore */ }
   }
 }
 
