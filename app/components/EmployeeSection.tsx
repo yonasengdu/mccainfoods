@@ -79,8 +79,8 @@ export default function EmployeeSection() {
   }, []);
 
   const visibleEmployees = useMemo(() => {
-    if (activeFilter === "all") return employees;
-    return employees.filter((e) => e.status === activeFilter);
+    const filtered = activeFilter === "all" ? employees : employees.filter((e) => e.status === activeFilter);
+    return filtered.slice().sort((a, b) => a.fullName.localeCompare(b.fullName));
   }, [employees, activeFilter]);
 
   const counts = useMemo(() => {

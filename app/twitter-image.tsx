@@ -5,7 +5,12 @@ export const alt = "McCain Foods | Celebrating Real Connections";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default function TwitterImage() {
+export default async function TwitterImage() {
+  const logoData = await fetch(
+    new URL("https://www.mccain.com/images/logo-mccain.png")
+  ).then((res) => res.arrayBuffer());
+  const logoBase64 = `data:image/png;base64,${Buffer.from(logoData).toString("base64")}`;
+
   return new ImageResponse(
     (
       <div
@@ -48,32 +53,43 @@ export default function TwitterImage() {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: "24px",
+            gap: "32px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <div
-              style={{
-                width: "64px",
-                height: "64px",
-                borderRadius: "16px",
-                background: "rgba(255, 199, 44, 0.15)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <div style={{ fontSize: "36px", fontWeight: 900, color: "#FFC72C" }}>M</div>
-            </div>
-            <div style={{ fontSize: "48px", fontWeight: 900, color: "white", letterSpacing: "-1px" }}>
-              McCain Foods
-            </div>
-          </div>
-          <div style={{ width: "80px", height: "4px", borderRadius: "2px", background: "#FFC72C" }} />
-          <div style={{ fontSize: "28px", color: "rgba(255, 255, 255, 0.85)", fontWeight: 500 }}>
+          <img
+            src={logoBase64}
+            width={320}
+            height={92}
+            style={{
+              filter: "brightness(0) invert(1)",
+            }}
+          />
+          <div
+            style={{
+              width: "80px",
+              height: "4px",
+              borderRadius: "2px",
+              background: "#FFC72C",
+            }}
+          />
+          <div
+            style={{
+              fontSize: "32px",
+              color: "rgba(255, 255, 255, 0.9)",
+              fontWeight: 600,
+            }}
+          >
             Celebrating Real Connections
           </div>
-          <div style={{ fontSize: "18px", color: "rgba(255, 255, 255, 0.5)", maxWidth: "600px", textAlign: "center", lineHeight: "1.5" }}>
+          <div
+            style={{
+              fontSize: "20px",
+              color: "rgba(255, 255, 255, 0.5)",
+              maxWidth: "600px",
+              textAlign: "center",
+              lineHeight: "1.5",
+            }}
+          >
             Global leader in prepared potato products and appetizers
           </div>
         </div>

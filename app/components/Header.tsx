@@ -19,9 +19,10 @@ export default function Header() {
     (e: React.MouseEvent) => {
       const now = Date.now();
       if (now - lastTapRef.current < 500) {
-        // Double tap/click detected
         e.preventDefault();
-        router.push("/login");
+        router.push("/admin");
+        lastTapRef.current = 0;
+        return;
       }
       lastTapRef.current = now;
     },
@@ -35,19 +36,17 @@ export default function Header() {
       {/* Main nav bar */}
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-20">
-          {/* Logo with double-tap handler */}
-          <div className="flex-shrink-0 cursor-pointer" onClick={handleLogoTap}>
-            <Link href="/" onClick={(e) => e.stopPropagation()}>
-              <Image
-                src="https://www.mccain.com/images/logo-mccain.png"
-                alt="McCain Logo"
-                width={140}
-                height={40}
-                className="h-10 w-auto"
-                priority
-              />
-            </Link>
-          </div>
+          {/* Logo with double-tap to navigate to admin */}
+          <Link href="/" onClick={handleLogoTap} className="flex-shrink-0">
+            <Image
+              src="https://www.mccain.com/images/logo-mccain.png"
+              alt="McCain Logo"
+              width={200}
+              height={58}
+              className="h-14 sm:h-16 w-auto"
+              priority
+            />
+          </Link>
 
           {/* Desktop nav */}
           <nav className="hidden lg:flex items-center gap-1">
