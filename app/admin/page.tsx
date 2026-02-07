@@ -1,9 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/app/components/AuthProvider";
+
+// Module-level cache so the admin table doesn't re-fetch on every visit
+let cachedAdminEmployees: Employee[] | null = null;
+let adminCacheTimestamp = 0;
+const ADMIN_CACHE_TTL = 30_000; // 30 seconds
 
 interface Employee {
   id: string;
@@ -118,8 +123,19 @@ function ErrorText({ msg }: { msg: string }) {
 }
 
 export default function AdminPage() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [employees, setEmployeesRaw] = useState<Employee[]>(cachedAdminEmployees ?? []);
+  const [loading, setLoading] = useState(cachedAdminEmployees === null);
+  const fetchedRef = useRef(false);
+
+  // Wrap setEmployees to also update the module-level cache
+  const setEmployees = useCallback((updater: Employee[] | ((prev: Employee[]) => Employee[])) => {
+    setEmployeesRaw((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      cachedAdminEmployees = next;
+      adminCacheTimestamp = Date.now();
+      return next;
+    });
+  }, []);
   const [formOpen, setFormOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -140,18 +156,31 @@ export default function AdminPage() {
   const [age, setAge] = useState("");
   const [formStatus, setFormStatus] = useState("pending");
 
-  const fetchEmployees = useCallback(async () => {
+  const fetchEmployees = useCallback(async (force = false) => {
+    if (!force && cachedAdminEmployees && Date.now() - adminCacheTimestamp < ADMIN_CACHE_TTL) {
+      setEmployeesRaw(cachedAdminEmployees);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/employees");
       const data = await res.json();
-      if (Array.isArray(data)) setEmployees(data);
+      if (Array.isArray(data)) {
+        cachedAdminEmployees = data;
+        adminCacheTimestamp = Date.now();
+        setEmployeesRaw(data);
+      }
     } catch { /* silently handled */ } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchEmployees(); }, [fetchEmployees]);
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+    fetchEmployees();
+  }, [fetchEmployees]);
 
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp) => {

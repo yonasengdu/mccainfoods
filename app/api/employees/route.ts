@@ -10,7 +10,11 @@ function isAuthed(request: NextRequest): boolean {
 export async function GET() {
   try {
     const employees = await getAllEmployees();
-    return NextResponse.json(employees);
+    return NextResponse.json(employees, {
+      headers: {
+        "Cache-Control": "public, s-maxage=15, stale-while-revalidate=30",
+      },
+    });
   } catch {
     return NextResponse.json(
       { error: "Failed to fetch applicants" },
