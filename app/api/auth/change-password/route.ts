@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const creds = getAdminCredentials();
+    const creds = await getAdminCredentials();
 
     if (currentPassword !== creds.password) {
       return NextResponse.json(
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    updateAdminPassword(newPassword);
+    await updateAdminPassword(newPassword);
 
     return NextResponse.json({ success: true });
   } catch {

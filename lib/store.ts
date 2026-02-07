@@ -1,57 +1,93 @@
 import fs from "fs";
 import path from "path";
-
-// In production (Vercel), the project dir is read-only so we write to /tmp.
-// In development, we read/write directly in the project's data/ folder.
+import { put, del, list, head } from "@vercel/blob";
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
-function resolveDataPath(filename: string): string {
-  const projectPath = path.join(process.cwd(), "data", filename);
-  if (!IS_PROD) return projectPath;
+// ═══════════════════════════════════════════════════
+//  Low-level read / write helpers
+//  • Dev  → local filesystem (instant)
+//  • Prod → Vercel Blob (persistent across deploys)
+// ═══════════════════════════════════════════════════
 
-  const tmpPath = path.join("/tmp", filename);
-  if (!fs.existsSync(tmpPath) && fs.existsSync(projectPath)) {
-    fs.copyFileSync(projectPath, tmpPath);
-  }
-  return tmpPath;
-}
+// ─── JSON helpers ───
 
-function getUploadsDir(): string {
+async function readJSON<T>(filename: string, fallback: T): Promise<T> {
   if (!IS_PROD) {
-    const dir = path.join(process.cwd(), "public", "uploads");
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    return dir;
+    const filePath = path.join(process.cwd(), "data", filename);
+    try {
+      return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    } catch {
+      return fallback;
+    }
   }
-  const dir = path.join("/tmp", "uploads");
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  return dir;
+  // Production: read from Vercel Blob
+  try {
+    const info = await head(`data/${filename}`, { token: process.env.BLOB_READ_WRITE_TOKEN! });
+    const res = await fetch(info.url);
+    return (await res.json()) as T;
+  } catch {
+    return fallback;
+  }
 }
 
-// ─── Image helpers ───
+async function writeJSON<T>(filename: string, data: T): Promise<void> {
+  if (!IS_PROD) {
+    const filePath = path.join(process.cwd(), "data", filename);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+    return;
+  }
+  // Production: write to Vercel Blob (overwrites existing)
+  await put(`data/${filename}`, JSON.stringify(data), {
+    access: "public",
+    addRandomSuffix: false,
+    token: process.env.BLOB_READ_WRITE_TOKEN!,
+  });
+}
 
-/** Save a base64 data URL as a file. Returns the public URL path. */
-export function savePhoto(base64DataUrl: string): string {
+// ─── Photo helpers ───
+
+async function savePhotoFile(base64DataUrl: string): Promise<string> {
   const match = base64DataUrl.match(/^data:image\/(\w+);base64,(.+)$/);
   if (!match) throw new Error("Invalid image data");
 
   const ext = match[1] === "jpeg" ? "jpg" : match[1];
   const buffer = Buffer.from(match[2], "base64");
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const filePath = path.join(getUploadsDir(), filename);
-  fs.writeFileSync(filePath, buffer);
-  return `/uploads/${filename}`;
+
+  if (!IS_PROD) {
+    const dir = path.join(process.cwd(), "public", "uploads");
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, filename), buffer);
+    return `/uploads/${filename}`;
+  }
+  // Production: upload to Vercel Blob
+  const blob = await put(`uploads/${filename}`, buffer, {
+    access: "public",
+    addRandomSuffix: false,
+    token: process.env.BLOB_READ_WRITE_TOKEN!,
+  });
+  return blob.url; // full public URL
 }
 
-/** Delete a photo file by its URL path. */
-function deletePhotoFile(photoUrl: string): void {
+async function deletePhotoFile(photoUrl: string): Promise<void> {
   if (!photoUrl || photoUrl.startsWith("data:")) return;
-  const filename = photoUrl.replace("/uploads/", "");
-  const filePath = path.join(getUploadsDir(), filename);
-  try { fs.unlinkSync(filePath); } catch { /* file may not exist */ }
+
+  if (!IS_PROD) {
+    const filename = photoUrl.replace("/uploads/", "");
+    const filePath = path.join(process.cwd(), "public", "uploads", filename);
+    try { fs.unlinkSync(filePath); } catch { /* file may not exist */ }
+    return;
+  }
+  // Production: delete from Vercel Blob
+  try {
+    await del(photoUrl, { token: process.env.BLOB_READ_WRITE_TOKEN! });
+  } catch { /* silently handled */ }
 }
 
-// ─── Employee types & helpers ───
+// ═══════════════════════════════════════════════════
+//  Employee CRUD
+// ═══════════════════════════════════════════════════
 
 export interface Employee {
   id: string;
@@ -59,60 +95,26 @@ export interface Employee {
   phoneNumber: string;
   passportNumber: string;
   gender: string;
-  photograph: string; // URL path like /uploads/abc.jpg
+  photograph: string;
   age: number;
   status: string;
   createdAt: string;
 }
 
-function readEmployees(): Employee[] {
-  const filePath = resolveDataPath("employees.json");
-  try {
-    const raw = fs.readFileSync(filePath, "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
-}
-
-function writeEmployees(employees: Employee[]): void {
-  const filePath = resolveDataPath("employees.json");
-  fs.writeFileSync(filePath, JSON.stringify(employees, null, 2), "utf-8");
-}
-
-/** Migrate any remaining base64 photographs to files. Run once on first access. */
-let migrated = false;
-function migrateBase64Photos(): void {
-  if (migrated) return;
-  migrated = true;
-  const employees = readEmployees();
-  let changed = false;
-  for (const emp of employees) {
-    if (emp.photograph && emp.photograph.startsWith("data:")) {
-      try {
-        emp.photograph = savePhoto(emp.photograph);
-        changed = true;
-      } catch { /* skip invalid images */ }
-    }
-  }
-  if (changed) writeEmployees(employees);
-}
-
-export function getAllEmployees(): Employee[] {
-  migrateBase64Photos();
-  return readEmployees().sort(
+export async function getAllEmployees(): Promise<Employee[]> {
+  const employees = await readJSON<Employee[]>("employees.json", []);
+  return employees.sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 }
 
-export function createEmployee(data: Omit<Employee, "id" | "createdAt">): Employee {
-  // Save photo as file, store only URL
+export async function createEmployee(data: Omit<Employee, "id" | "createdAt">): Promise<Employee> {
   let photoUrl = data.photograph;
   if (photoUrl.startsWith("data:")) {
-    photoUrl = savePhoto(photoUrl);
+    photoUrl = await savePhotoFile(photoUrl);
   }
 
-  const employees = readEmployees();
+  const employees = await readJSON<Employee[]>("employees.json", []);
   const newEmployee: Employee = {
     ...data,
     photograph: photoUrl,
@@ -120,62 +122,53 @@ export function createEmployee(data: Omit<Employee, "id" | "createdAt">): Employ
     createdAt: new Date().toISOString(),
   };
   employees.push(newEmployee);
-  writeEmployees(employees);
+  await writeJSON("employees.json", employees);
   return newEmployee;
 }
 
-export function updateEmployeeStatus(id: string, status: string): Employee | null {
-  const employees = readEmployees();
+export async function updateEmployeeStatus(id: string, status: string): Promise<Employee | null> {
+  const employees = await readJSON<Employee[]>("employees.json", []);
   const idx = employees.findIndex((e) => e.id === id);
   if (idx === -1) return null;
   employees[idx].status = status;
-  writeEmployees(employees);
+  await writeJSON("employees.json", employees);
   return employees[idx];
 }
 
-export function deleteEmployee(id: string): boolean {
-  const employees = readEmployees();
+export async function deleteEmployee(id: string): Promise<boolean> {
+  const employees = await readJSON<Employee[]>("employees.json", []);
   const target = employees.find((e) => e.id === id);
   if (!target) return false;
-  deletePhotoFile(target.photograph);
+  await deletePhotoFile(target.photograph);
   const filtered = employees.filter((e) => e.id !== id);
-  writeEmployees(filtered);
+  await writeJSON("employees.json", filtered);
   return true;
 }
 
-// ─── Admin settings ───
+// ═══════════════════════════════════════════════════
+//  Admin settings
+// ═══════════════════════════════════════════════════
 
 interface AdminSettings {
   username: string;
   password: string;
 }
 
-function readAdmin(): AdminSettings {
-  const filePath = resolveDataPath("admin.json");
-  try {
-    const raw = fs.readFileSync(filePath, "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return { username: "admin", password: "admin123" };
-  }
+const DEFAULT_ADMIN: AdminSettings = { username: "admin", password: "admin123" };
+
+export async function getAdminCredentials(): Promise<AdminSettings> {
+  return readJSON<AdminSettings>("admin.json", DEFAULT_ADMIN);
 }
 
-function writeAdmin(settings: AdminSettings): void {
-  const filePath = resolveDataPath("admin.json");
-  fs.writeFileSync(filePath, JSON.stringify(settings, null, 2), "utf-8");
-}
-
-export function getAdminCredentials(): AdminSettings {
-  return readAdmin();
-}
-
-export function updateAdminPassword(newPassword: string): void {
-  const settings = readAdmin();
+export async function updateAdminPassword(newPassword: string): Promise<void> {
+  const settings = await readJSON<AdminSettings>("admin.json", DEFAULT_ADMIN);
   settings.password = newPassword;
-  writeAdmin(settings);
+  await writeJSON("admin.json", settings);
 }
 
-// ─── Utilities ───
+// ═══════════════════════════════════════════════════
+//  Utilities
+// ═══════════════════════════════════════════════════
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 9);

@@ -9,7 +9,7 @@ function isAuthed(request: NextRequest): boolean {
 
 export async function GET() {
   try {
-    const employees = getAllEmployees();
+    const employees = await getAllEmployees();
     return NextResponse.json(employees);
   } catch {
     return NextResponse.json(
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     const validStatuses = ["pending", "approved", "rejected"];
     const applicantStatus = status && validStatuses.includes(status) ? status : "pending";
 
-    const applicant = createEmployee({
+    const applicant = await createEmployee({
       fullName,
       phoneNumber,
       passportNumber,

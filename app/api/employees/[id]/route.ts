@@ -27,7 +27,7 @@ export async function PATCH(
       );
     }
 
-    const employee = updateEmployeeStatus(id, status);
+    const employee = await updateEmployeeStatus(id, status);
     if (!employee) {
       return NextResponse.json({ error: "Applicant not found" }, { status: 404 });
     }
@@ -51,7 +51,7 @@ export async function DELETE(
 
   try {
     const { id } = await params;
-    const deleted = deleteEmployee(id);
+    const deleted = await deleteEmployee(id);
     if (!deleted) {
       return NextResponse.json({ error: "Applicant not found" }, { status: 404 });
     }

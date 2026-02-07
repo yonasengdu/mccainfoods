@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { username, password } = body;
 
-    const creds = getAdminCredentials();
+    const creds = await getAdminCredentials();
 
     if (username === creds.username && password === creds.password) {
       const response = NextResponse.json({ success: true });
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
-        maxAge: 60 * 60 * 24, // 24 hours
+        maxAge: 60 * 60 * 24,
       });
       return response;
     }
