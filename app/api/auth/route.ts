@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  ADMIN_USERNAME,
-  ADMIN_PASSWORD,
-  AUTH_COOKIE_NAME,
-  AUTH_TOKEN_VALUE,
-} from "@/lib/auth";
+import { AUTH_COOKIE_NAME, AUTH_TOKEN_VALUE } from "@/lib/auth";
+import { getAdminCredentials } from "@/lib/admin-settings";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { username, password } = body;
 
-    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+    const creds = await getAdminCredentials();
+
+    if (username === creds.username && password === creds.password) {
       const response = NextResponse.json({ success: true });
       response.cookies.set(AUTH_COOKIE_NAME, AUTH_TOKEN_VALUE, {
         httpOnly: true,

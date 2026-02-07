@@ -18,3 +18,9 @@ model Employee {
   status         String   @default("pending") // pending | approved | rejected
   createdAt      DateTime @default(now())
 }
+
+model AdminSettings {
+  id       String @id @default("admin")
+  username String @default("admin")
+  password String @default("admin123")
+}
