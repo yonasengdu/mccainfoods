@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { AUTH_COOKIE_NAME, AUTH_TOKEN_VALUE } from "@/lib/auth";
+import { getAllEmployees, createEmployee } from "@/lib/store";
 
 function isAuthed(request: NextRequest): boolean {
   const token = request.cookies.get(AUTH_COOKIE_NAME);
@@ -9,9 +9,7 @@ function isAuthed(request: NextRequest): boolean {
 
 export async function GET() {
   try {
-    const employees = await prisma.employee.findMany({
-      orderBy: { createdAt: "desc" },
-    });
+    const employees = getAllEmployees();
     return NextResponse.json(employees);
   } catch {
     return NextResponse.json(
@@ -40,16 +38,14 @@ export async function POST(request: NextRequest) {
     const validStatuses = ["pending", "approved", "rejected"];
     const applicantStatus = status && validStatuses.includes(status) ? status : "pending";
 
-    const applicant = await prisma.employee.create({
-      data: {
-        fullName,
-        phoneNumber,
-        passportNumber,
-        gender,
-        photograph,
-        age: parseInt(age, 10),
-        status: applicantStatus,
-      },
+    const applicant = createEmployee({
+      fullName,
+      phoneNumber,
+      passportNumber,
+      gender,
+      photograph,
+      age: parseInt(age, 10),
+      status: applicantStatus,
     });
 
     return NextResponse.json(applicant, { status: 201 });

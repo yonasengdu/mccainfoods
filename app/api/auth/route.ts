@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AUTH_COOKIE_NAME, AUTH_TOKEN_VALUE } from "@/lib/auth";
-import { getAdminCredentials } from "@/lib/admin-settings";
+import { getAdminCredentials } from "@/lib/store";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { username, password } = body;
 
-    const creds = await getAdminCredentials();
+    const creds = getAdminCredentials();
 
     if (username === creds.username && password === creds.password) {
       const response = NextResponse.json({ success: true });

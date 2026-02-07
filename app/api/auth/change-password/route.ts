@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AUTH_COOKIE_NAME, AUTH_TOKEN_VALUE } from "@/lib/auth";
-import { getAdminCredentials, updateAdminPassword } from "@/lib/admin-settings";
+import { getAdminCredentials, updateAdminPassword } from "@/lib/store";
 
 function isAuthed(request: NextRequest): boolean {
   return request.cookies.get(AUTH_COOKIE_NAME)?.value === AUTH_TOKEN_VALUE;
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const creds = await getAdminCredentials();
+    const creds = getAdminCredentials();
 
     if (currentPassword !== creds.password) {
       return NextResponse.json(
@@ -45,11 +45,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await updateAdminPassword(newPassword, creds.username);
+    updateAdminPassword(newPassword);
 
     return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("Change password error:", err);
+  } catch {
     return NextResponse.json(
       { error: "Failed to change password" },
       { status: 500 }

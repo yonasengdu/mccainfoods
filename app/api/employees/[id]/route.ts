@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { AUTH_COOKIE_NAME, AUTH_TOKEN_VALUE } from "@/lib/auth";
+import { updateEmployeeStatus, deleteEmployee } from "@/lib/store";
 
 function isAuthed(request: NextRequest): boolean {
   const token = request.cookies.get(AUTH_COOKIE_NAME);
@@ -27,10 +27,10 @@ export async function PATCH(
       );
     }
 
-    const employee = await prisma.employee.update({
-      where: { id },
-      data: { status },
-    });
+    const employee = updateEmployeeStatus(id, status);
+    if (!employee) {
+      return NextResponse.json({ error: "Applicant not found" }, { status: 404 });
+    }
 
     return NextResponse.json(employee);
   } catch {
@@ -51,7 +51,10 @@ export async function DELETE(
 
   try {
     const { id } = await params;
-    await prisma.employee.delete({ where: { id } });
+    const deleted = deleteEmployee(id);
+    if (!deleted) {
+      return NextResponse.json({ error: "Applicant not found" }, { status: 404 });
+    }
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json(
