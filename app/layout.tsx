@@ -11,6 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://mccainfoods-tan.vercel.app"),
   title: "McCain Foods Global Corporate Website | McCain.com",
   description:
     "McCain Foods is a global leader in prepared potato products and appetizers. Discover our business, sustainability efforts, careers, and latest news.",
@@ -18,26 +19,19 @@ export const metadata: Metadata = {
     icon: "/favicon.ico",
   },
   openGraph: {
-    title: "McCain Foods Global Corporate Website",
+    title: "McCain Foods | Celebrating Real Connections",
     description:
-      "A global leader in prepared potato products and appetizers. Discover our business, sustainability efforts, careers, and latest news.",
+      "McCain Foods is a global leader in prepared potato products and appetizers. Discover our business, sustainability efforts, careers, and latest news.",
     url: "https://mccainfoods-tan.vercel.app",
     siteName: "McCain Foods",
-    images: [
-      {
-        url: "https://www.mccain.com/images/logo-mccain.png",
-        width: 1200,
-        height: 630,
-      },
-    ],
+    locale: "en_US",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "McCain Foods Global Corporate Website",
+    title: "McCain Foods | Celebrating Real Connections",
     description:
-      "A global leader in prepared potato products and appetizers.",
-    images: ["https://www.mccain.com/images/logo-mccain.png"],
+      "McCain Foods is a global leader in prepared potato products and appetizers.",
   },
 };
 
