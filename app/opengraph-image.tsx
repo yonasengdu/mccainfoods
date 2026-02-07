@@ -1,17 +1,11 @@
 import { ImageResponse } from "next/og";
+import { MCCAIN_LOGO_BASE64 } from "@/lib/logo";
 
-export const runtime = "edge";
 export const alt = "McCain Foods | Celebrating Real Connections";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default async function OGImage() {
-  // Fetch the McCain logo and convert to base64 data URL
-  const logoData = await fetch(
-    new URL("https://www.mccain.com/images/logo-mccain.png")
-  ).then((res) => res.arrayBuffer());
-  const logoBase64 = `data:image/png;base64,${Buffer.from(logoData).toString("base64")}`;
-
+export default function OGImage() {
   return new ImageResponse(
     (
       <div
@@ -61,13 +55,12 @@ export default async function OGImage() {
           }}
         >
           {/* McCain logo */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={logoBase64}
+            src={MCCAIN_LOGO_BASE64}
             width={320}
-            height={92}
-            style={{
-              filter: "brightness(0) invert(1)",
-            }}
+            height={194}
+            alt="McCain Logo"
           />
 
           {/* Yellow divider */}
