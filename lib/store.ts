@@ -1,48 +1,90 @@
 import fs from "fs";
 import path from "path";
-import { put, del, list, head } from "@vercel/blob";
 
 const IS_PROD = process.env.NODE_ENV === "production";
+const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
+
+// Lazy-import @vercel/blob only when we actually have a token
+async function getBlobSDK() {
+  if (!BLOB_TOKEN) return null;
+  try {
+    return await import("@vercel/blob");
+  } catch {
+    return null;
+  }
+}
 
 // ═══════════════════════════════════════════════════
 //  Low-level read / write helpers
 //  • Dev  → local filesystem (instant)
-//  • Prod → Vercel Blob (persistent across deploys)
+//  • Prod + token → Vercel Blob (persistent)
+//  • Prod no token → /tmp fallback (ephemeral)
 // ═══════════════════════════════════════════════════
+
+function tmpPath(filename: string): string {
+  return path.join("/tmp", filename);
+}
+
+function localPath(filename: string): string {
+  return path.join(process.cwd(), "data", filename);
+}
 
 // ─── JSON helpers ───
 
 async function readJSON<T>(filename: string, fallback: T): Promise<T> {
+  // Dev: read from local data/ folder
   if (!IS_PROD) {
-    const filePath = path.join(process.cwd(), "data", filename);
     try {
-      return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+      return JSON.parse(fs.readFileSync(localPath(filename), "utf-8"));
     } catch {
       return fallback;
     }
   }
-  // Production: read from Vercel Blob
-  try {
-    const info = await head(`data/${filename}`, { token: process.env.BLOB_READ_WRITE_TOKEN! });
-    const res = await fetch(info.url);
-    return (await res.json()) as T;
-  } catch {
-    return fallback;
+
+  // Prod with Vercel Blob
+  const blob = await getBlobSDK();
+  if (blob) {
+    try {
+      const info = await blob.head(`data/${filename}`, { token: BLOB_TOKEN! });
+      const res = await fetch(info.url);
+      if (res.ok) return (await res.json()) as T;
+    } catch { /* blob not found or token issue, fall through */ }
   }
+
+  // Prod fallback: try /tmp, then bundled data/
+  try {
+    if (fs.existsSync(tmpPath(filename))) {
+      return JSON.parse(fs.readFileSync(tmpPath(filename), "utf-8"));
+    }
+    if (fs.existsSync(localPath(filename))) {
+      return JSON.parse(fs.readFileSync(localPath(filename), "utf-8"));
+    }
+  } catch { /* ignore */ }
+  return fallback;
 }
 
 async function writeJSON<T>(filename: string, data: T): Promise<void> {
+  const json = JSON.stringify(data, null, 2);
+
+  // Dev: write to local data/ folder
   if (!IS_PROD) {
-    const filePath = path.join(process.cwd(), "data", filename);
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+    fs.writeFileSync(localPath(filename), json, "utf-8");
     return;
   }
-  // Production: write to Vercel Blob (overwrites existing)
-  await put(`data/${filename}`, JSON.stringify(data), {
-    access: "public",
-    addRandomSuffix: false,
-    token: process.env.BLOB_READ_WRITE_TOKEN!,
-  });
+
+  // Prod with Vercel Blob
+  const blob = await getBlobSDK();
+  if (blob) {
+    await blob.put(`data/${filename}`, json, {
+      access: "public",
+      addRandomSuffix: false,
+      token: BLOB_TOKEN!,
+    });
+    return;
+  }
+
+  // Prod fallback: /tmp
+  fs.writeFileSync(tmpPath(filename), json, "utf-8");
 }
 
 // ─── Photo helpers ───
@@ -55,19 +97,30 @@ async function savePhotoFile(base64DataUrl: string): Promise<string> {
   const buffer = Buffer.from(match[2], "base64");
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
+  // Dev: save to public/uploads/
   if (!IS_PROD) {
     const dir = path.join(process.cwd(), "public", "uploads");
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, filename), buffer);
     return `/uploads/${filename}`;
   }
-  // Production: upload to Vercel Blob
-  const blob = await put(`uploads/${filename}`, buffer, {
-    access: "public",
-    addRandomSuffix: false,
-    token: process.env.BLOB_READ_WRITE_TOKEN!,
-  });
-  return blob.url; // full public URL
+
+  // Prod with Vercel Blob
+  const blob = await getBlobSDK();
+  if (blob) {
+    const result = await blob.put(`uploads/${filename}`, buffer, {
+      access: "public",
+      addRandomSuffix: false,
+      token: BLOB_TOKEN!,
+    });
+    return result.url;
+  }
+
+  // Prod fallback: /tmp
+  const dir = path.join("/tmp", "uploads");
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, filename), buffer);
+  return `/api/uploads/${filename}`;
 }
 
 async function deletePhotoFile(photoUrl: string): Promise<void> {
@@ -75,14 +128,16 @@ async function deletePhotoFile(photoUrl: string): Promise<void> {
 
   if (!IS_PROD) {
     const filename = photoUrl.replace("/uploads/", "");
-    const filePath = path.join(process.cwd(), "public", "uploads", filename);
-    try { fs.unlinkSync(filePath); } catch { /* file may not exist */ }
+    try { fs.unlinkSync(path.join(process.cwd(), "public", "uploads", filename)); } catch { /* ignore */ }
     return;
   }
-  // Production: delete from Vercel Blob
-  try {
-    await del(photoUrl, { token: process.env.BLOB_READ_WRITE_TOKEN! });
-  } catch { /* silently handled */ }
+
+  // Prod with Vercel Blob
+  const blob = await getBlobSDK();
+  if (blob && photoUrl.includes("blob.vercel-storage.com")) {
+    try { await blob.del(photoUrl, { token: BLOB_TOKEN! }); } catch { /* ignore */ }
+    return;
+  }
 }
 
 // ═══════════════════════════════════════════════════

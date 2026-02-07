@@ -9,5 +9,16 @@
     "status": "approved",
     "id": "mlcdmcyueez0ofs",
     "createdAt": "2026-02-07T13:55:11.526Z"
+  },
+  {
+    "fullName": "abe kebe",
+    "phoneNumber": "+251 3224",
+    "passportNumber": "ET32423",
+    "gender": "Male",
+    "photograph": "/uploads/1770475981125-njh7rn.png",
+    "age": 23,
+    "status": "approved",
+    "id": "mlcfoq4o8k90mxa",
+    "createdAt": "2026-02-07T14:53:01.128Z"
   }
 ]
