@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { mainNav, socialLinks } from "@/app/data/navigation";
-import { useAuth } from "@/app/components/AuthProvider";
 
 
 export default function Header() {
@@ -13,7 +12,6 @@ export default function Header() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const lastTapRef = useRef<number>(0);
   const router = useRouter();
-  const { isLoggedIn } = useAuth();
 
   const handleLogoTap = useCallback(
     (e: React.MouseEvent) => {
@@ -28,8 +26,6 @@ export default function Header() {
     },
     [router]
   );
-
-  const profileHref = isLoggedIn ? "/admin" : "/login";
 
   return (
     <header className="w-full bg-white shadow-sm sticky top-0 z-50">
@@ -80,35 +76,10 @@ export default function Header() {
               </div>
             ))}
 
-            {/* Profile icon - desktop */}
-            <Link
-              href={profileHref}
-              className="ml-2 p-2 rounded-full hover:bg-mccain-gray transition-colors"
-              aria-label="Profile"
-            >
-              <svg className="w-6 h-6 text-mccain-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-              </svg>
-              {isLoggedIn && (
-                <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-mccain-green rounded-full border-2 border-white" />
-              )}
-            </Link>
           </nav>
 
-          {/* Mobile right side: profile icon + menu button */}
+          {/* Mobile right side: menu button */}
           <div className="flex lg:hidden items-center gap-2">
-            <Link
-              href={profileHref}
-              className="p-2 text-mccain-dark relative"
-              aria-label="Profile"
-            >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-              </svg>
-              {isLoggedIn && (
-                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-mccain-green rounded-full border-2 border-white" />
-              )}
-            </Link>
             <button
               className="p-2 text-mccain-dark"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
