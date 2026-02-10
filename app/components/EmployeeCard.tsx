@@ -2,9 +2,11 @@ import Image from "next/image";
 
 interface EmployeeCardProps {
   fullName: string;
+  phoneNumber: string;
   passportNumber: string;
   gender: string;
   photograph: string;
+  age: number;
   status: string;
 }
 
@@ -37,9 +39,11 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; d
 
 export default function EmployeeCard({
   fullName,
+  phoneNumber,
   passportNumber,
   gender,
   photograph,
+  age,
   status,
 }: EmployeeCardProps) {
   const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
@@ -76,9 +80,21 @@ export default function EmployeeCard({
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
             </svg>
           </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[8px] sm:text-[10px] text-gray-400 uppercase tracking-wider font-medium">Gender / Age</p>
+            <p className="text-[11px] sm:text-sm font-semibold text-mccain-dark">{gender} <span className="text-gray-400 font-normal">·</span> {age} yrs</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-md sm:rounded-lg bg-mccain-gray flex items-center justify-center flex-shrink-0">
+            <svg className="w-3 h-3 sm:w-4 sm:h-4 text-mccain-green" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+            </svg>
+          </div>
           <div className="min-w-0">
-            <p className="text-[8px] sm:text-[10px] text-gray-400 uppercase tracking-wider font-medium">Gender</p>
-            <p className="text-[11px] sm:text-sm font-semibold text-mccain-dark">{gender}</p>
+            <p className="text-[8px] sm:text-[10px] text-gray-400 uppercase tracking-wider font-medium">Phone</p>
+            <p className="text-[11px] sm:text-sm font-semibold text-mccain-dark truncate">{phoneNumber}</p>
           </div>
         </div>
 

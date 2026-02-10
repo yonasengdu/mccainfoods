@@ -175,9 +175,11 @@ export default function EmployeeSection() {
               <EmployeeCard
                 key={employee.id}
                 fullName={employee.fullName}
+                phoneNumber={employee.phoneNumber}
                 passportNumber={employee.passportNumber}
                 gender={employee.gender}
                 photograph={employee.photograph}
+                age={employee.age}
                 status={employee.status}
               />
             ))}
