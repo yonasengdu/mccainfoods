@@ -129,16 +129,20 @@ const DEFAULT_ADMIN: AdminSettings = { username: "admin", password: "admin123" }
 
 export async function getAdminCredentials(): Promise<AdminSettings> {
   const db = await getDb();
-  const doc = await db.collection<AdminSettings>("admin_settings").findOne({ _id: "admin" as unknown as ObjectId });
-  if (doc) return { username: doc.username, password: doc.password };
+  const col = db.collection("admin_settings");
+  // Look for the new format first
+  const doc = await col.findOne({ key: "admin" });
+  if (doc) return { username: doc.username as string, password: doc.password as string };
+  // Clean up any old broken docs and return default
+  await col.deleteMany({});
   return DEFAULT_ADMIN;
 }
 
 export async function updateAdminPassword(newPassword: string): Promise<void> {
   const db = await getDb();
   await db.collection("admin_settings").updateOne(
-    { _id: "admin" as unknown as ObjectId },
-    { $set: { password: newPassword } },
+    { key: "admin" },
+    { $set: { password: newPassword, username: "admin" } },
     { upsert: true }
   );
 }
