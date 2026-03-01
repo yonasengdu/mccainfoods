@@ -597,7 +597,7 @@ export default function AdminPage() {
                         <select value={countryCode} onChange={(e) => setCountryCode(e.target.value)} className={`w-[100px] sm:w-[120px] flex-shrink-0 px-2 sm:px-3 py-3 border rounded-xl text-[15px] sm:text-sm bg-white focus:outline-none focus:ring-2 focus:border-transparent appearance-none ${fieldErrors.phoneNumber ? "border-red-300 focus:ring-red-400" : "border-gray-200 focus:ring-mccain-green/50"}`}>
                           {COUNTRY_CODES.map((c) => (<option key={`${c.country}-${c.code}`} value={c.code}>{c.flag} {c.code}</option>))}
                         </select>
-                        <input type="tel" value={phoneLocal} onChange={(e) => { setPhoneLocal(e.target.value.replace(/[^\d\s\-()]/g, "")); if (fieldErrors.phoneNumber) setFieldErrors((p) => ({ ...p, phoneNumber: undefined })); }} placeholder="234 567 890" className={`flex-1 min-w-0 ${inputClass(!!fieldErrors.phoneNumber)}`} />
+                        <input type="tel" value={phoneLocal} onChange={(e) => { setPhoneLocal(e.target.value.toUpperCase().trim()); if (fieldErrors.phoneNumber) setFieldErrors((p) => ({ ...p, phoneNumber: undefined })); }} placeholder="234 567 890" className={`flex-1 min-w-0 ${inputClass(!!fieldErrors.phoneNumber)}`} />
                       </div>
                       {fieldErrors.phoneNumber && <ErrorText msg={fieldErrors.phoneNumber} />}
                     </div>
