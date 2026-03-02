@@ -210,7 +210,7 @@ export default function AdminPage() {
   };
 
   const resetForm = () => {
-    setFullName(""); setCountryCode(""); setPhoneLocal(""); setPassportNumber("");
+    setFullName(""); setCountryCode("+251"); setPhoneLocal(""); setPassportNumber("");
     setGender(""); setPhotograph(""); setPhotoPreview(""); setAge("");
     setFormStatus("pending"); setError(""); setFieldErrors({});
   };
@@ -253,7 +253,7 @@ export default function AdminPage() {
       const res = await fetch("/api/employees", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName: fullName.trim(), phoneNumber: countryCode ? `${countryCode} ${d}` : d, passportNumber: passportNumber.trim().toUpperCase(), gender, photograph, age, status: formStatus }),
+        body: JSON.stringify({ fullName: fullName.trim(), phoneNumber: `${countryCode} ${d}`, passportNumber: passportNumber.trim().toUpperCase(), gender, photograph, age, status: formStatus }),
       });
       if (res.ok) { const newApplicant = await res.json(); setEmployees(prev => [newApplicant, ...prev]); setSuccess("Applicant added!"); resetForm(); setFormOpen(false); setTimeout(() => setSuccess(""), 4000); }
       else { const data = await res.json(); setError(data.error || "Failed to add"); }
@@ -595,10 +595,9 @@ export default function AdminPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone *</label>
                       <div className="flex gap-2">
                         <select value={countryCode} onChange={(e) => setCountryCode(e.target.value)} className={`w-[100px] sm:w-[120px] flex-shrink-0 px-2 sm:px-3 py-3 border rounded-xl text-[15px] sm:text-sm bg-white focus:outline-none focus:ring-2 focus:border-transparent appearance-none ${fieldErrors.phoneNumber ? "border-red-300 focus:ring-red-400" : "border-gray-200 focus:ring-mccain-green/50"}`}>
-                          <option value="">Code</option>
                           {COUNTRY_CODES.map((c) => (<option key={`${c.country}-${c.code}`} value={c.code}>{c.flag} {c.code}</option>))}
                         </select>
-                        <input type="text" inputMode="text" value={phoneLocal} onChange={(e) => { setPhoneLocal(e.target.value.trim()); if (fieldErrors.phoneNumber) setFieldErrors((p) => ({ ...p, phoneNumber: undefined })); }} placeholder="234 567 890" className={`flex-1 min-w-0 ${inputClass(!!fieldErrors.phoneNumber)}`} />
+                        <input type="text" value={phoneLocal} onChange={(e) => { setPhoneLocal(e.target.value.toUpperCase().trim()); if (fieldErrors.phoneNumber) setFieldErrors((p) => ({ ...p, phoneNumber: undefined })); }} placeholder="234 567 890" className={`flex-1 min-w-0 ${inputClass(!!fieldErrors.phoneNumber)}`} />
                       </div>
                       {fieldErrors.phoneNumber && <ErrorText msg={fieldErrors.phoneNumber} />}
                     </div>
