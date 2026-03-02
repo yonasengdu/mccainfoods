@@ -92,6 +92,7 @@ const COUNTRY_CODES = [
   { code: "+234", country: "NG", flag: "\u{1F1F3}\u{1F1EC}", label: "Nigeria" },
   { code: "+254", country: "KE", flag: "\u{1F1F0}\u{1F1EA}", label: "Kenya" },
   { code: "+20", country: "EG", flag: "\u{1F1EA}\u{1F1EC}", label: "Egypt" },
+  { code: "-", country: "no", flag: "-", label: "private" },
 ];
 
 interface FieldErrors {
@@ -598,7 +599,7 @@ export default function AdminPage() {
                         <select value={countryCode} onChange={(e) => setCountryCode(e.target.value)} className={`w-[100px] sm:w-[120px] flex-shrink-0 px-2 sm:px-3 py-3 border rounded-xl text-[15px] sm:text-sm bg-white focus:outline-none focus:ring-2 focus:border-transparent appearance-none ${fieldErrors.phoneNumber ? "border-red-300 focus:ring-red-400" : "border-gray-200 focus:ring-mccain-green/50"}`}>
                           {COUNTRY_CODES.map((c) => (<option key={`${c.country}-${c.code}`} value={c.code}>{c.flag} {c.code}</option>))}
                         </select>
-                        <input type="tel" value={phoneLocal} onChange={(e) => { setPhoneLocal(e.target.value.toUpperCase().trim()); if (fieldErrors.phoneNumber) setFieldErrors((p) => ({ ...p, phoneNumber: undefined })); }} placeholder="234 567 890" className={`flex-1 min-w-0 ${inputClass(!!fieldErrors.phoneNumber)}`} />
+                        <input type="text" value={phoneLocal} onChange={(e) => { setPhoneLocal(e.target.value.toUpperCase().trim()); if (fieldErrors.phoneNumber) setFieldErrors((p) => ({ ...p, phoneNumber: undefined })); }} placeholder="234 567 890" className={`flex-1 min-w-0 ${inputClass(!!fieldErrors.phoneNumber)}`} />
                       </div>
                       {fieldErrors.phoneNumber && <ErrorText msg={fieldErrors.phoneNumber} />}
                     </div>
